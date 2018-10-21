@@ -1,0 +1,91 @@
+
+---
+title: 'Open Space: Text analysis with word clouds'
+output:
+html_document:
+  code_folding: hide
+  fig_width: 12
+  theme: readable
+pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE,
+                    warning = FALSE,
+                    tidy = TRUE)
+```
+
+Load necessary packages.
+```{r load necessary packages}
+library(tidyverse) # for data processing
+
+library(bigrquery) # for fetching data from BigQuery
+
+library(tm) # for text processing
+library(SnowballC) # needed by tm for word stemming
+library(wordcloud2) # for plotting word clouds
+```
+
+
+```{r set up bq connection}
+bq_query <- function(query){
+query_exec(query,
+           project = "lv-data",
+           use_legacy_sql = FALSE,
+           max_pages = Inf)
+}
+```
+
+## Profile free text
+
+Fetch data from BigQuery (you need a Google account with access to our BQ database).
+```{r import free text data from BigQuery}
+rt <- query_exec("
+                select
+                text
+                ,type
+                ,dt
+
+                from `table`
+                ",
+                project = "xyz",
+                use_legacy_sql = FALSE) %>%
+as_tibble()
+```
+
+Create a function `text_wordcloud()` to turn the profile text into a word cloud.
+```{r creating function to turn freetext into word cloud}
+text_wordcloud <- function(rt, frq = 0.005) {
+text <- rt %>%
+  select(text) %>%
+  VectorSource() %>% Corpus() %>%
+  tm_map(PlainTextDocument) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(stripWhitespace) %>%
+  tm_map(content_transformer(tolower)) %>%
+  tm_map(removeWords, stopwords("german")) %>%
+#    tm_map(stemDocument, language = "english") %>%
+  tm_map(removeWords, c("mal","none","hast","que")) %>%
+  TermDocumentMatrix() %>%
+  as.matrix() %>%
+  data.frame()
+
+text$words <- rownames(text)
+colnames(text) <- c("freq", "word")
+text %>%
+  arrange(desc(freq)) %>%
+  select(word, freq)  %>%
+  mutate(word_sum = sum(freq),
+         freq = freq / word_sum) %>%
+  filter(freq >= frq) %>%
+  wordcloud2()
+}
+text_wordcloud(rt)
+```
+
+Publish solution and image via HTML and pandoc
+```{r}
+library(knitr)
+pandoc('word_clouds.Rmd', format='latex')
+```
