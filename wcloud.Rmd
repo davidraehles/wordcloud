@@ -30,16 +30,15 @@ library(wordcloud2) # for plotting word clouds
 ```{r set up bq connection}
 bq_query <- function(query){
 query_exec(query,
-           project = "lv-data",
+           project = "YOUR PROJECT",
            use_legacy_sql = FALSE,
            max_pages = Inf)
 }
 ```
 
-## Profile free text
 
 Fetch data from BigQuery (you need a Google account with access to our BQ database).
-```{r import free text data from BigQuery}
+```{r import data from BigQuery}
 rt <- query_exec("
                 select
                 text
@@ -53,8 +52,8 @@ rt <- query_exec("
 as_tibble()
 ```
 
-Create a function `text_wordcloud()` to turn the profile text into a word cloud.
-```{r creating function to turn freetext into word cloud}
+Create a function `text_wordcloud()` to turn the text into a word cloud.
+```{r creating function to turn text into word cloud}
 text_wordcloud <- function(rt, frq = 0.005) {
 text <- rt %>%
   select(text) %>%
